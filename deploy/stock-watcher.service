@@ -1,0 +1,17 @@
+[Unit]
+Description=Feishu US stock watcher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/stock-watcher
+EnvironmentFile=/opt/stock-watcher/.env
+ExecStart=/opt/stock-watcher/.venv/bin/python /opt/stock-watcher/watch.py
+Restart=always
+RestartSec=10
+User=stockwatcher
+Group=stockwatcher
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+[
+  {
+    "symbol": "AAPL",
+    "name": "Apple",
+    "enabled": true
+  },
+  {
+    "symbol": "NVDA",
+    "name": "NVIDIA",
+    "enabled": true
+  }
+]

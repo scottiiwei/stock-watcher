@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>美股盯盘工具使用说明书</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --paper: #fffdf8;
+      --ink: #17201b;
+      --muted: #66736a;
+      --line: #d9d1c1;
+      --green: #1f7a4d;
+      --red: #b63a2e;
+      --blue: #275f8f;
+      --amber: #b66f12;
+      --code-bg: #18211d;
+      --code-ink: #e7f1ea;
+      --shadow: 0 18px 45px rgba(42, 35, 20, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(135deg, rgba(31, 122, 77, 0.12), transparent 38%),
+        linear-gradient(315deg, rgba(182, 111, 18, 0.12), transparent 34%),
+        var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      line-height: 1.72;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      max-width: 1440px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 22px;
+      border-right: 1px solid var(--line);
+      background: rgba(255, 253, 248, 0.78);
+      backdrop-filter: blur(18px);
+      overflow: auto;
+    }
+
+    .brand {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .brand .eyebrow {
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    .brand p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    nav {
+      display: grid;
+      gap: 3px;
+      font-size: 14px;
+    }
+
+    nav a {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 8px;
+      color: #314238;
+    }
+
+    nav a:hover {
+      background: #ece5d8;
+      text-decoration: none;
+    }
+
+    main {
+      padding: 34px clamp(22px, 5vw, 68px) 72px;
+    }
+
+    .hero {
+      padding: 36px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background:
+        linear-gradient(135deg, rgba(31, 122, 77, 0.12), transparent 50%),
+        linear-gradient(315deg, rgba(39, 95, 143, 0.10), transparent 44%),
+        var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .hero h2 {
+      margin: 0 0 10px;
+      font-size: clamp(32px, 5vw, 54px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 820px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .meta-card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.58);
+    }
+
+    .meta-card b {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .meta-card span {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    section {
+      margin-top: 34px;
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 253, 248, 0.9);
+      box-shadow: 0 10px 28px rgba(42, 35, 20, 0.06);
+    }
+
+    section h2 {
+      margin: 0 0 14px;
+      font-size: 26px;
+      line-height: 1.25;
+    }
+
+    h3 {
+      margin: 24px 0 10px;
+      font-size: 18px;
+    }
+
+    p {
+      margin: 10px 0;
+    }
+
+    ul {
+      padding-left: 22px;
+      margin: 10px 0;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 5px;
+      background: #eee7db;
+      color: #233228;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    pre {
+      margin: 14px 0;
+      padding: 16px 18px;
+      border-radius: 12px;
+      background: var(--code-bg);
+      color: var(--code-ink);
+      overflow: auto;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.58;
+    }
+
+    pre code {
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      font-size: inherit;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      overflow: hidden;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #ebe3d5;
+      color: #29382f;
+      font-weight: 800;
+    }
+
+    tr:nth-child(even) td {
+      background: #fbf7ef;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0;
+    }
+
+    .flow div {
+      position: relative;
+      padding: 16px;
+      border-radius: 12px;
+      background: #eef5ef;
+      border: 1px solid #c9dccd;
+      min-height: 96px;
+    }
+
+    .flow b {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--green);
+    }
+
+    .callout {
+      margin: 16px 0;
+      padding: 14px 16px;
+      border-left: 5px solid var(--green);
+      border-radius: 10px;
+      background: #edf6ee;
+    }
+
+    .warning {
+      border-left-color: var(--amber);
+      background: #fff3df;
+    }
+
+    .danger {
+      border-left-color: var(--red);
+      background: #fff0ed;
+    }
+
+    .message {
+      border: 1px solid #ded6c8;
+      border-radius: 14px;
+      padding: 16px;
+      background: #292c29;
+      color: #f5f5ef;
+      font-size: 15px;
+      white-space: pre-line;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #e8f1ea;
+      color: var(--green);
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      padding: 30px 0 0;
+    }
+
+    @media (max-width: 980px) {
+      .shell {
+        display: block;
+      }
+
+      aside {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .meta-grid,
+      .flow,
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      aside {
+        display: none;
+      }
+
+      .shell {
+        display: block;
+      }
+
+      main {
+        padding: 0;
+      }
+
+      section,
+      .hero {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">
+        <div class="eyebrow">Stock Watcher Manual</div>
+        <h1>美股盯盘工具使用说明书</h1>
+        <p>moomoo OpenD + 飞书个人机器人 + Ubuntu 后台服务</p>
+      </div>
+      <nav>
+        <a href="#overview">1. 项目概览</a>
+        <a href="#architecture">2. 部署结构</a>
+        <a href="#logic">3. 运行逻辑</a>
+        <a href="#rules">4. 告警策略</a>
+        <a href="#messages">5. 飞书消息</a>
+        <a href="#sessions">6. 交易时段</a>
+        <a href="#positions">7. 修改股票</a>
+        <a href="#config">8. 修改策略</a>
+        <a href="#services">9. 服务管理</a>
+        <a href="#test">10. 手动测试</a>
+        <a href="#debug">11. 排错指南</a>
+        <a href="#security">12. 安全事项</a>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="hero" id="overview">
+        <span class="tag">✅ 已部署运行</span>
+        <h2>美股盯盘工具</h2>
+        <p>监控美股持仓在短时间内的价格波动。当股票在最近 5 分钟滚动窗口内达到设定涨跌幅时，程序会通过飞书个人机器人发送告警。</p>
+        <div class="meta-grid">
+          <div class="meta-card"><b>行情源</b><span>moomoo OpenD</span></div>
+          <div class="meta-card"><b>通知通道</b><span>飞书机器人</span></div>
+          <div class="meta-card"><b>检查频率</b><span>10 秒</span></div>
+          <div class="meta-card"><b>正式策略</b><span>1% / 2%</span></div>
+        </div>
+      </header>
+
+      <section id="architecture">
+        <h2>2. 当前部署结构</h2>
+        <p>服务器上的项目目录：</p>
+        <pre><code>/opt/stock-watcher</code></pre>
+        <p>moomoo OpenD 目录：</p>
+        <pre><code>/opt/moomoo-opend/moomoo_OpenD_10.7.6708_Ubuntu18.04/moomoo_OpenD_10.7.6708_Ubuntu18.04</code></pre>
+        <table>
+          <thead>
+            <tr><th>服务</th><th>作用</th><th>状态</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>moomoo-opend.service</code></td><td>登录 moomoo，提供本地行情端口 <code>127.0.0.1:11111</code></td><td>后台运行，开机自启</td></tr>
+            <tr><td><code>stock-watcher.service</code></td><td>读取行情、计算波动、发送飞书提醒</td><td>后台运行，开机自启</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="logic">
+        <h2>3. 核心运行逻辑</h2>
+        <div class="flow">
+          <div><b>1. 读取持仓</b>从 <code>positions.json</code> 读取要监控的股票代码。</div>
+          <div><b>2. 拉取行情</b>每 10 秒通过 OpenD 获取最新价格。</div>
+          <div><b>3. 滚动计算</b>维护最近 5 分钟价格窗口，计算涨跌幅。</div>
+          <div><b>4. 发送提醒</b>达到策略阈值后，通过飞书机器人发送告警。</div>
+        </div>
+        <p>当前核心配置：</p>
+        <pre><code>POLL_SECONDS=10
+PRICE_WINDOW_MINUTES=5
+ALERT_RULES=normal:1:3,strong:2:3</code></pre>
+        <div class="callout">
+          <strong>滚动窗口说明：</strong>窗口不是固定分段，而是每次报价到来时，都取“当前时间往前 5 分钟内”的最早价格进行比较。
+        </div>
+        <pre><code>第 0 分钟：100
+第 1 分钟：101，涨幅 1%，触发普通异动
+第 6 分钟：104，第 0 分钟价格已过期，会用第 1 分钟的 101 对比</code></pre>
+      </section>
+
+      <section id="rules">
+        <h2>4. 告警策略</h2>
+        <table>
+          <thead>
+            <tr><th>级别</th><th>规则</th><th>冷却</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>⚡ 普通异动</td><td>5 分钟内涨跌超过 1%</td><td>3 分钟</td><td>提示股票开始出现明显波动。</td></tr>
+            <tr><td>🔥 强异动</td><td>5 分钟内涨跌超过 2%</td><td>3 分钟</td><td>提示股票正在剧烈波动，需要更高关注。</td></tr>
+          </tbody>
+        </table>
+        <p>配置文件位置：</p>
+        <pre><code>/opt/stock-watcher/.env</code></pre>
+        <p>正式配置：</p>
+        <pre><code>ALERT_RULES=normal:1:3,strong:2:3</code></pre>
+        <p>格式：</p>
+        <pre><code>策略ID:阈值百分比:冷却分钟</code></pre>
+        <div class="callout">
+          两档策略的冷却时间彼此独立。普通异动刚提醒过，如果价格继续冲到强异动阈值，强异动仍然可以单独提醒。
+        </div>
+      </section>
+
+      <section id="messages">
+        <h2>5. 飞书消息格式</h2>
+        <h3>启动消息</h3>
+        <div class="message">✅ 美股盯盘已启动
+👀 监控: AAPL, NVDA, MU, MRVL, VOO
+🪟 窗口: 5 分钟
+🎯 策略: 普通异动 1% / 冷却 3 分钟
+🎯 策略: 强异动 2% / 冷却 3 分钟</div>
+        <div class="two-col">
+          <div>
+            <h3>普通异动</h3>
+            <div class="message">⚡ 美股盯盘提醒｜普通异动
+🏷️ 标的: NVDA NVIDIA
+📈 波动: 1.0 分钟内上涨 1.20%
+💵 价格: 100.00 -> 101.20
+⏱️ 时段: regular
+🕒 行情时间(美东): 2026-06-05 10:30:00</div>
+          </div>
+          <div>
+            <h3>强异动</h3>
+            <div class="message">🔥 美股盯盘提醒｜强异动
+🏷️ 标的: AAPL Apple
+📉 波动: 2.0 分钟内下跌 2.05%
+💵 价格: 102.00 -> 99.91
+⏱️ 时段: regular
+🕒 行情时间(美东): 2026-06-05 10:30:00</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sessions">
+        <h2>6. 交易时段说明</h2>
+        <table>
+          <thead>
+            <tr><th>时段</th><th>美东时间</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>pre-market</code></td><td>04:00 - 09:30</td><td>盘前</td></tr>
+            <tr><td><code>regular</code></td><td>09:30 - 16:00</td><td>正常盘</td></tr>
+            <tr><td><code>after-hours</code></td><td>16:00 - 20:00</td><td>盘后</td></tr>
+            <tr><td><code>overnight</code></td><td>20:00 - 次日 04:00</td><td>夜盘</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <strong>行情时间(美东)</strong> 是 moomoo 返回的行情时间，不是飞书消息发送时间。
+        </div>
+      </section>
+
+      <section id="positions">
+        <h2>7. 修改监控股票</h2>
+        <p>持仓文件：</p>
+        <pre><code>/opt/stock-watcher/positions.json</code></pre>
+        <p>编辑命令：</p>
+        <pre><code>cd /opt/stock-watcher
+nano positions.json</code></pre>
+        <p>格式示例：</p>
+        <pre><code>[
+  {
+    "symbol": "AAPL",
+    "name": "Apple",
+    "enabled": true
+  },
+  {
+    "symbol": "NVDA",
+    "name": "NVIDIA",
+    "enabled": true
+  }
+]</code></pre>
+        <table>
+          <thead>
+            <tr><th>字段</th><th>含义</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>symbol</code></td><td>股票代码，程序按这个字段拉取行情。</td></tr>
+            <tr><td><code>name</code></td><td>飞书消息里显示的名称。</td></tr>
+            <tr><td><code>enabled</code></td><td>是否启用。设为 <code>false</code> 可临时停用某只股票。</td></tr>
+          </tbody>
+        </table>
+        <p>保存后检查 JSON：</p>
+        <pre><code>python3 -m json.tool positions.json</code></pre>
+        <p>重启 watcher：</p>
+        <pre><code>systemctl restart stock-watcher</code></pre>
+      </section>
+
+      <section id="config">
+        <h2>8. 修改告警策略</h2>
+        <p>编辑配置：</p>
+        <pre><code>cd /opt/stock-watcher
+nano .env</code></pre>
+        <p>找到：</p>
+        <pre><code>ALERT_RULES=normal:1:3,strong:2:3</code></pre>
+        <p>示例：把普通异动冷却改成 2 分钟。</p>
+        <pre><code>ALERT_RULES=normal:1:2,strong:2:3</code></pre>
+        <p>保存后重启：</p>
+        <pre><code>systemctl restart stock-watcher</code></pre>
+      </section>
+
+      <section id="services">
+        <h2>9. 服务管理命令</h2>
+        <table>
+          <thead>
+            <tr><th>目的</th><th>命令</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>查看 watcher 状态</td><td><code>systemctl status stock-watcher --no-pager</code></td></tr>
+            <tr><td>查看 OpenD 状态</td><td><code>systemctl status moomoo-opend --no-pager</code></td></tr>
+            <tr><td>查看实时日志</td><td><code>journalctl -u stock-watcher -f</code></td></tr>
+            <tr><td>查看最近日志</td><td><code>journalctl -u stock-watcher -n 100 --no-pager</code></td></tr>
+            <tr><td>重启 watcher</td><td><code>systemctl restart stock-watcher</code></td></tr>
+            <tr><td>重启 OpenD</td><td><code>systemctl restart moomoo-opend</code></td></tr>
+            <tr><td>确认运行状态</td><td><code>systemctl is-active moomoo-opend stock-watcher</code></td></tr>
+            <tr><td>确认开机自启</td><td><code>systemctl is-enabled moomoo-opend stock-watcher</code></td></tr>
+          </tbody>
+        </table>
+        <p>正常健康状态：</p>
+        <pre><code>active
+active
+enabled
+enabled</code></pre>
+      </section>
+
+      <section id="test">
+        <h2>10. 手动测试</h2>
+        <h3>测试 OpenD 是否监听</h3>
+        <pre><code>ss -ltnp | grep 11111</code></pre>
+        <p>正常应看到：</p>
+        <pre><code>127.0.0.1:11111</code></pre>
+        <h3>测试拉取一次行情</h3>
+        <pre><code>cd /opt/stock-watcher
+.venv/bin/python watch.py --once</code></pre>
+        <p>正常输出示例：</p>
+        <pre><code>AAPL 311.3499 13:50:26.722 regular
+NVDA 219.3050 13:50:26.731 regular</code></pre>
+        <h3>临时降低阈值测试飞书提醒</h3>
+        <pre><code>ALERT_RULES=normal:0.03:3,strong:0.1:3</code></pre>
+        <div class="warning callout">
+          测试完成后记得改回正式策略：<code>ALERT_RULES=normal:1:3,strong:2:3</code>，然后执行 <code>systemctl restart stock-watcher</code>。
+        </div>
+      </section>
+
+      <section id="debug">
+        <h2>11. 常见问题与排错</h2>
+        <h3>飞书没有收到消息</h3>
+        <pre><code>journalctl -u stock-watcher -n 100 --no-pager
+grep -n '^FEISHU_' /opt/stock-watcher/.env</code></pre>
+        <p>如果日志里出现 <code>Invalid ids</code>，通常是 <code>FEISHU_RECEIVE_ID</code> 填错。</p>
+
+        <h3>行情拉不到</h3>
+        <pre><code>systemctl status moomoo-opend --no-pager
+ss -ltnp | grep 11111
+cd /opt/stock-watcher
+.venv/bin/python watch.py --once</code></pre>
+
+        <h3>修改配置后不生效</h3>
+        <pre><code>systemctl restart stock-watcher</code></pre>
+      </section>
+
+      <section id="security">
+        <h2>12. 安全注意事项</h2>
+        <div class="danger callout">
+          不要公开发布飞书密钥、moomoo 登录信息、服务器 root 密码或 OpenD 配置文件。
+        </div>
+        <pre><code>FEISHU_APP_SECRET
+FEISHU_RECEIVE_ID
+moomoo 登录账号
+moomoo 登录密码
+服务器 root 密码</code></pre>
+        <p>OpenD 登录密码保存在：</p>
+        <pre><code>/opt/moomoo-opend/moomoo_OpenD_10.7.6708_Ubuntu18.04/moomoo_OpenD_10.7.6708_Ubuntu18.04/OpenD.xml</code></pre>
+        <p>如果飞书 <code>App Secret</code> 曾经发到聊天、截图、文档里，建议在飞书开发者后台重置。</p>
+      </section>
+
+      <section>
+        <h2>当前正式配置摘要</h2>
+        <pre><code>PRICE_WINDOW_MINUTES=5
+POLL_SECONDS=10
+ALERT_RULES=normal:1:3,strong:2:3</code></pre>
+        <p>当前监控股票：</p>
+        <pre><code>AAPL
+NVDA
+MU
+MRVL
+VOO</code></pre>
+      </section>
+
+      <div class="footer">生成文件：使用说明书.html。可直接浏览，也可通过浏览器打印为 PDF。</div>
+    </main>
+  </div>
+</body>
+</html>
