@@ -1,8 +1,9 @@
 # Feishu Stock Watcher
 
 This project watches US stocks through moomoo OpenAPI/OpenD and sends private
-Feishu bot alerts when a symbol moves more than the configured percentage inside
-a short time window.
+Feishu bot alerts when a symbol crosses configured short-window movement
+ladders. It also sends a market-open summary comparing the opening price with
+the previous close.
 
 Full Chinese usage guide:
 
@@ -84,10 +85,13 @@ python .\watch.py
 
 Default watcher behavior:
 
-- window: 5 minutes
-- threshold: 1%
+- windows: 3 / 5 / 10 minutes
+- movement calculation: current price vs the lowest/highest price inside each window
+- ladders: `3m 0.8/1.2/1.8%`, `5m 1/1.5/2/2.5%`, `10m 1.5/2.5/3.5%`
 - poll interval: 10 seconds
-- cooldown: same stock and direction alerts once every 10 minutes
+- cooldown: same stock, direction, window, and ladder has a 60-second fallback cooldown
+- burst control: same stock and direction has a 180-second global cooldown
+- de-duplication: same stock and direction sends only the strongest alert in one polling cycle
 
 ## 7. Deploy later
 

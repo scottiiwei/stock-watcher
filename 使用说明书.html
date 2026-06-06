@@ -406,12 +406,12 @@
       <header class="hero" id="overview">
         <span class="tag">✅ 已部署运行</span>
         <h2>美股盯盘工具</h2>
-        <p>监控美股持仓在短时间内的价格波动。当股票在最近 5 分钟滚动窗口内达到设定涨跌幅时，程序会通过飞书个人机器人发送告警。</p>
+        <p>监控美股持仓在短时间内的价格波动。当股票在 3 / 5 / 10 分钟窗口内出现区间高低点异动时，程序会通过飞书个人机器人发送告警。</p>
         <div class="meta-grid">
           <div class="meta-card"><b>行情源</b><span>moomoo OpenD</span></div>
           <div class="meta-card"><b>通知通道</b><span>飞书机器人</span></div>
           <div class="meta-card"><b>检查频率</b><span>10 秒</span></div>
-          <div class="meta-card"><b>正式策略</b><span>1% / 2%</span></div>
+          <div class="meta-card"><b>正式策略</b><span>3/5/10 分钟多窗口</span></div>
         </div>
       </header>
 
@@ -437,19 +437,22 @@
         <div class="flow">
           <div><b>1. 读取持仓</b>从 <code>positions.json</code> 读取要监控的股票代码。</div>
           <div><b>2. 拉取行情</b>每 10 秒通过 OpenD 获取最新价格。</div>
-          <div><b>3. 滚动计算</b>维护最近 5 分钟价格窗口，计算涨跌幅。</div>
+          <div><b>3. 滚动计算</b>维护 3 / 5 / 10 分钟窗口，按区间低点/高点计算涨跌幅。</div>
           <div><b>4. 发送提醒</b>达到策略阈值后，通过飞书机器人发送告警。</div>
         </div>
         <p>当前核心配置：</p>
         <pre><code>POLL_SECONDS=10
-PRICE_WINDOW_MINUTES=5
-ALERT_RULES=normal:1:3,strong:2:3</code></pre>
+ALERT_WINDOWS=3:0.8|1.2|1.8:0.5,5:1|1.5|2|2.5:0.7,10:1.5|2.5|3.5:1.0
+LADDER_COOLDOWN_SECONDS=60
+SYMBOL_DIRECTION_COOLDOWN_SECONDS=180</code></pre>
         <div class="callout">
-          <strong>滚动窗口说明：</strong>窗口不是固定分段，而是每次报价到来时，都取“当前时间往前 5 分钟内”的最早价格进行比较。
+          <strong>滚动窗口说明：</strong>窗口不是固定分段。上涨用“当前价 vs 窗口内最低价”，下跌用“当前价 vs 窗口内最高价”，因此能识别先砸后拉、先拉后砸这类异动。
         </div>
-        <pre><code>第 0 分钟：100
-第 1 分钟：101，涨幅 1%，触发普通异动
-第 6 分钟：104，第 0 分钟价格已过期，会用第 1 分钟的 101 对比</code></pre>
+        <pre><code>最近 5 分钟：100 -> 98 -> 99 -> 101
+上涨判断：101 vs 低点 98，涨幅 3.06%
+
+最近 5 分钟：100 -> 102 -> 101 -> 99.5
+下跌判断：99.5 vs 高点 102，跌幅 2.45%</code></pre>
       </section>
 
       <section id="rules">
@@ -459,18 +462,21 @@ ALERT_RULES=normal:1:3,strong:2:3</code></pre>
             <tr><th>级别</th><th>规则</th><th>冷却</th><th>说明</th></tr>
           </thead>
           <tbody>
-            <tr><td>⚡ 普通异动</td><td>5 分钟内涨跌超过 1%</td><td>3 分钟</td><td>提示股票开始出现明显波动。</td></tr>
-            <tr><td>🔥 强异动</td><td>5 分钟内涨跌超过 2%</td><td>3 分钟</td><td>提示股票正在剧烈波动，需要更高关注。</td></tr>
+            <tr><td>⚡ 3分钟</td><td>0.8% / 1.2% / 1.8%</td><td>60 秒兜底</td><td>捕捉短线急动。</td></tr>
+            <tr><td>📣 5分钟</td><td>1% / 1.5% / 2% / 2.5%</td><td>60 秒兜底</td><td>主力盯盘窗口。</td></tr>
+            <tr><td>🔥 10分钟</td><td>1.5% / 2.5% / 3.5%</td><td>60 秒兜底</td><td>识别趋势扩散。</td></tr>
+            <tr><td>🧹 同轮去重</td><td>同股票 + 同方向只发最强一条</td><td>-</td><td>避免多个窗口同时刷屏。</td></tr>
           </tbody>
         </table>
         <p>配置文件位置：</p>
         <pre><code>/opt/stock-watcher/.env</code></pre>
         <p>正式配置：</p>
-        <pre><code>ALERT_RULES=normal:1:3,strong:2:3</code></pre>
+        <pre><code>ALERT_WINDOWS=3:0.8|1.2|1.8:0.5,5:1|1.5|2|2.5:0.7,10:1.5|2.5|3.5:1.0
+LADDER_COOLDOWN_SECONDS=60</code></pre>
         <p>格式：</p>
-        <pre><code>策略ID:阈值百分比:冷却分钟</code></pre>
+        <pre><code>窗口分钟数:阶梯阈值|阶梯阈值|阶梯阈值:重置线</code></pre>
         <div class="callout">
-          两档策略的冷却时间彼此独立。普通异动刚提醒过，如果价格继续冲到强异动阈值，强异动仍然可以单独提醒。
+          阶梯状态按“股票 + 方向 + 窗口”记录。跨过更高阶梯才会再次提醒；回落到该窗口重置线以下后，下一轮可以重新触发。
         </div>
       </section>
 
@@ -479,27 +485,59 @@ ALERT_RULES=normal:1:3,strong:2:3</code></pre>
         <h3>启动消息</h3>
         <div class="message">✅ 美股盯盘已启动
 👀 监控: AAPL, NVDA, MU, MRVL, VOO
-🪟 窗口: 5 分钟
-🎯 策略: 普通异动 1% / 冷却 3 分钟
-🎯 策略: 强异动 2% / 冷却 3 分钟</div>
+🪟 窗口阶梯: 3分钟: 0.8% / 1.2% / 1.8%；5分钟: 1% / 1.5% / 2% / 2.5%；10分钟: 1.5% / 2.5% / 3.5%
+♻️ 重置线: 3分钟 0.5% / 5分钟 0.7% / 10分钟 1%
+🧯 兜底冷却: 60 秒
+🧊 同方向冷静期: 180 秒
+🔔 开盘快照: 开启，超过 3% 特别标注</div>
         <div class="two-col">
           <div>
-            <h3>普通异动</h3>
-            <div class="message">⚡ 美股盯盘提醒｜普通异动
+            <h3>5分钟 1% 阶梯</h3>
+            <div class="message">⚡ 美股盯盘提醒｜5分钟 1% 阶梯
 🏷️ 标的: NVDA NVIDIA
-📈 波动: 1.0 分钟内上涨 1.20%
+📈 波动: 5分钟窗口上涨 1.20%
+🧭 区间: 低点 10:25:12 -> 当前 10:30:12
 💵 价格: 100.00 -> 101.20
 ⏱️ 时段: regular
 🕒 行情时间(美东): 2026-06-05 10:30:00</div>
           </div>
           <div>
-            <h3>强异动</h3>
-            <div class="message">🔥 美股盯盘提醒｜强异动
-🏷️ 标的: AAPL Apple
-📉 波动: 2.0 分钟内下跌 2.05%
-💵 价格: 102.00 -> 99.91
+            <h3>3分钟 1.2% 阶梯</h3>
+            <div class="message">📣 美股盯盘提醒｜3分钟 1.2% 阶梯
+🏷️ 标的: MRVL 迈威尔科技
+📈 波动: 3分钟窗口上涨 1.62%
+🧭 区间: 低点 10:30:20 -> 当前 10:33:20
+💵 价格: 312.25 -> 317.31
 ⏱️ 时段: regular
-🕒 行情时间(美东): 2026-06-05 10:30:00</div>
+🕒 行情时间(美东): 2026-06-05 10:33:20</div>
+          </div>
+          <div>
+            <h3>5分钟 2% 阶梯</h3>
+            <div class="message">🔥 美股盯盘提醒｜5分钟 2% 阶梯
+🏷️ 标的: MU 美光科技
+📉 波动: 5分钟窗口下跌 2.08%
+🧭 区间: 高点 10:36:08 -> 当前 10:41:08
+💵 价格: 1020.00 -> 998.78
+⏱️ 时段: regular
+🕒 行情时间(美东): 2026-06-05 10:41:08</div>
+          </div>
+          <div>
+            <h3>10分钟 3.5% 阶梯</h3>
+            <div class="message">🚨 美股盯盘提醒｜10分钟 3.5% 阶梯
+🏷️ 标的: AAPL Apple
+📈 波动: 10分钟窗口上涨 3.62%
+🧭 区间: 低点 10:35:16 -> 当前 10:45:16
+💵 价格: 198.10 -> 205.28
+⏱️ 时段: regular
+🕒 行情时间(美东): 2026-06-05 10:45:16</div>
+          </div>
+          <div>
+            <h3>开盘快照</h3>
+            <div class="message">🔔 美股开盘价格快照
+🕒 时间(美东): 2026-06-05 09:30:12
+📊 开盘价 vs 昨收价
+▫️ AAPL Apple: 上涨 0.85% (200.00 -> 201.70)
+🚨 MRVL 迈威尔科技: 下跌 3.25% (80.00 -> 77.40)</div>
           </div>
         </div>
       </section>
@@ -515,10 +553,12 @@ ALERT_RULES=normal:1:3,strong:2:3</code></pre>
             <tr><td><code>regular</code></td><td>09:30 - 16:00</td><td>正常盘</td></tr>
             <tr><td><code>after-hours</code></td><td>16:00 - 20:00</td><td>盘后</td></tr>
             <tr><td><code>overnight</code></td><td>20:00 - 次日 04:00</td><td>夜盘</td></tr>
+            <tr><td><code>closed</code></td><td>周五 20:00 - 周日 20:00</td><td>周末休市，不发送盘中阶梯提醒</td></tr>
           </tbody>
         </table>
         <div class="callout">
-          <strong>行情时间(美东)</strong> 是 moomoo 返回的行情时间，不是飞书消息发送时间。
+          周末休市期间不会生成盘中阶梯提醒，避免 moomoo 的残留 <code>overnight</code> 字段触发假波动。<br />
+          <strong>行情时间(美东)</strong>：常规盘使用 moomoo 返回的行情时间；盘前、盘后、夜盘使用本程序抓取价格时的美东采样时间。这样可以避免夜盘价格已经更新，但 moomoo 的 <code>data_time</code> 仍停留在 16:00 的误导。
         </div>
       </section>
 
@@ -564,9 +604,10 @@ nano positions.json</code></pre>
         <pre><code>cd /opt/stock-watcher
 nano .env</code></pre>
         <p>找到：</p>
-        <pre><code>ALERT_RULES=normal:1:3,strong:2:3</code></pre>
-        <p>示例：把普通异动冷却改成 2 分钟。</p>
-        <pre><code>ALERT_RULES=normal:1:2,strong:2:3</code></pre>
+        <pre><code>ALERT_WINDOWS=3:0.8|1.2|1.8:0.5,5:1|1.5|2|2.5:0.7,10:1.5|2.5|3.5:1.0
+LADDER_COOLDOWN_SECONDS=60</code></pre>
+        <p>示例：把 5 分钟窗口最高阶梯从 2.5% 改成 3%。</p>
+        <pre><code>ALERT_WINDOWS=3:0.8|1.2|1.8:0.5,5:1|1.5|2|3:0.7,10:1.5|2.5|3.5:1.0</code></pre>
         <p>保存后重启：</p>
         <pre><code>systemctl restart stock-watcher</code></pre>
       </section>
@@ -608,9 +649,9 @@ enabled</code></pre>
         <pre><code>AAPL 311.3499 13:50:26.722 regular
 NVDA 219.3050 13:50:26.731 regular</code></pre>
         <h3>临时降低阈值测试飞书提醒</h3>
-        <pre><code>ALERT_RULES=normal:0.03:3,strong:0.1:3</code></pre>
+        <pre><code>ALERT_WINDOWS=3:0.03|0.1|0.2:0.01,5:0.03|0.1|0.2:0.01,10:0.05|0.1|0.2:0.02</code></pre>
         <div class="warning callout">
-          测试完成后记得改回正式策略：<code>ALERT_RULES=normal:1:3,strong:2:3</code>，然后执行 <code>systemctl restart stock-watcher</code>。
+          测试完成后记得改回正式策略：<code>ALERT_WINDOWS=3:0.8|1.2|1.8:0.5,5:1|1.5|2|2.5:0.7,10:1.5|2.5|3.5:1.0</code>，然后执行 <code>systemctl restart stock-watcher</code>。
         </div>
       </section>
 
@@ -648,9 +689,11 @@ moomoo 登录密码
 
       <section>
         <h2>当前正式配置摘要</h2>
-        <pre><code>PRICE_WINDOW_MINUTES=5
-POLL_SECONDS=10
-ALERT_RULES=normal:1:3,strong:2:3</code></pre>
+        <pre><code>POLL_SECONDS=10
+ALERT_WINDOWS=3:0.8|1.2|1.8:0.5,5:1|1.5|2|2.5:0.7,10:1.5|2.5|3.5:1.0
+LADDER_COOLDOWN_SECONDS=60
+OPENING_SUMMARY_ENABLED=true
+OPENING_SUMMARY_THRESHOLD_PERCENT=3</code></pre>
         <p>当前监控股票：</p>
         <pre><code>AAPL
 NVDA

@@ -44,6 +44,50 @@ class AlertStateTests(unittest.TestCase):
                 )
             )
 
+    def test_ladder_state_tracks_highest_level_and_cooldown(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.json"
+            state = AlertState(path)
+
+            self.assertEqual(state.ladder_highest("AAPL", "up"), 0)
+            self.assertTrue(state.should_ladder_alert("AAPL", "up", 1, cooldown_seconds=60, now=1000))
+
+            state.mark_ladder_alerted("AAPL", "up", 1.5, now=1000)
+
+            self.assertEqual(state.ladder_highest("AAPL", "up"), 1.5)
+            self.assertFalse(state.should_ladder_alert("AAPL", "up", 1.5, cooldown_seconds=60, now=1030))
+            self.assertTrue(state.should_ladder_alert("AAPL", "up", 2, cooldown_seconds=60, now=1030))
+
+            state.reset_ladder("AAPL", "up")
+            self.assertEqual(state.ladder_highest("AAPL", "up"), 0)
+
+    def test_ladder_state_is_independent_per_window(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.json"
+            state = AlertState(path)
+
+            state.mark_ladder_alerted("AAPL", "up", 1, window_id="3m", now=1000)
+
+            self.assertEqual(state.ladder_highest("AAPL", "up", window_id="3m"), 1)
+            self.assertEqual(state.ladder_highest("AAPL", "up", window_id="5m"), 0)
+            self.assertFalse(
+                state.should_ladder_alert("AAPL", "up", 1, cooldown_seconds=60, window_id="3m", now=1030)
+            )
+            self.assertTrue(
+                state.should_ladder_alert("AAPL", "up", 1, cooldown_seconds=60, window_id="5m", now=1030)
+            )
+
+    def test_opening_summary_date_is_persisted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.json"
+            state = AlertState(path)
+
+            self.assertFalse(state.opening_summary_sent("2026-06-05"))
+            state.mark_opening_summary_sent("2026-06-05")
+
+            reloaded = AlertState(path)
+            self.assertTrue(reloaded.opening_summary_sent("2026-06-05"))
+
 
 if __name__ == "__main__":
     unittest.main()

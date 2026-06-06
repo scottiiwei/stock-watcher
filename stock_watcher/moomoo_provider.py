@@ -16,6 +16,8 @@ class Quote:
     price: float
     quote_time: str
     session: str
+    open_price: float | None = None
+    prev_close_price: float | None = None
 
 
 class MoomooQuoteProvider:
@@ -54,12 +56,16 @@ class MoomooQuoteProvider:
 
         rows = data.to_dict("records")
         quotes: list[Quote] = []
+        eastern_now = datetime.now(ZoneInfo("America/New_York"))
         for row in rows:
             code = str(row.get("code", "")).upper()
             position = by_code.get(code)
             if not position:
                 continue
-            price = self._pick_price(row)
+            session = self._session_from_eastern_time(eastern_now)
+            if session == "closed":
+                continue
+            price = self._pick_price(row, session)
             if price is None or price <= 0:
                 continue
             quotes.append(
@@ -68,8 +74,10 @@ class MoomooQuoteProvider:
                     symbol=position.symbol,
                     name=position.name,
                     price=price,
-                    quote_time=str(row.get("data_time") or row.get("update_time") or ""),
-                    session=self._pick_session(row),
+                    quote_time=self._pick_quote_time(row, session, eastern_now),
+                    session=session,
+                    open_price=self._pick_optional_price(row, "open_price"),
+                    prev_close_price=self._pick_optional_price(row, "prev_close_price"),
                 )
             )
         return quotes
@@ -78,8 +86,14 @@ class MoomooQuoteProvider:
         self._ctx.close()
 
     @staticmethod
-    def _pick_price(row: dict) -> float | None:
-        for field in ("last_price", "overnight_price", "after_price", "pre_price"):
+    def _pick_price(row: dict, session: str) -> float | None:
+        preferred_fields = {
+            "pre-market": ("pre_price", "last_price"),
+            "regular": ("last_price",),
+            "after-hours": ("after_price", "last_price"),
+            "overnight": ("overnight_price", "last_price"),
+        }
+        for field in preferred_fields.get(session, ("last_price",)):
             value = row.get(field)
             try:
                 price = float(value)
@@ -90,12 +104,35 @@ class MoomooQuoteProvider:
         return None
 
     @staticmethod
+    def _pick_optional_price(row: dict, field: str) -> float | None:
+        try:
+            price = float(row.get(field))
+        except (TypeError, ValueError):
+            return None
+        return price if price > 0 else None
+
+    @staticmethod
+    def _pick_quote_time(row: dict, session: str, eastern_now: datetime) -> str:
+        if session == "regular":
+            return str(row.get("data_time") or row.get("update_time") or "")
+        return eastern_now.strftime("%H:%M:%S")
+
+    @staticmethod
     def _pick_session(row: dict) -> str:
         return MoomooQuoteProvider._session_from_eastern_time(datetime.now(ZoneInfo("America/New_York")))
 
     @staticmethod
     def _session_from_eastern_time(now: datetime) -> str:
         current = now.time()
+        weekday = now.weekday()
+
+        if weekday == 5:
+            return "closed"
+        if weekday == 6:
+            return "overnight" if current >= time(20, 0) else "closed"
+        if weekday == 4 and current >= time(20, 0):
+            return "closed"
+
         if time(4, 0) <= current < time(9, 30):
             return "pre-market"
         if time(9, 30) <= current < time(16, 0):

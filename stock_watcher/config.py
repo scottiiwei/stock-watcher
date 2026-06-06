@@ -59,6 +59,21 @@ class AlertRule:
 
 
 @dataclass(frozen=True)
+class AlertWindow:
+    minutes: float
+    ladder: tuple[float, ...]
+    reset_percent: float
+
+    @property
+    def rule_id(self) -> str:
+        return f"{self.minutes:g}m"
+
+    @property
+    def label(self) -> str:
+        return f"{self.minutes:g}分钟"
+
+
+@dataclass(frozen=True)
 class WatcherConfig:
     positions_file: Path
     state_file: Path
@@ -66,6 +81,14 @@ class WatcherConfig:
     poll_seconds: float
     send_startup_message: bool
     alert_rules: tuple[AlertRule, ...]
+    alert_ladder: tuple[float, ...]
+    ladder_reset_percent: float
+    ladder_cooldown_seconds: float
+    symbol_direction_cooldown_seconds: float
+    alert_windows: tuple[AlertWindow, ...]
+    opening_summary_enabled: bool
+    opening_summary_threshold_percent: float
+    opening_summary_window_minutes: float
 
 
 @dataclass(frozen=True)
@@ -103,12 +126,58 @@ def load_config() -> AppConfig:
         watcher=WatcherConfig(
             positions_file=Path(os.getenv("POSITIONS_FILE", "positions.json")),
             state_file=Path(os.getenv("STATE_FILE", "state.json")),
-            price_window_minutes=float(os.getenv("PRICE_WINDOW_MINUTES", "5")),
+            price_window_minutes=float(os.getenv("PRICE_WINDOW_MINUTES", "3")),
             poll_seconds=float(os.getenv("POLL_SECONDS", "10")),
             send_startup_message=env_bool("SEND_STARTUP_MESSAGE", True),
             alert_rules=load_alert_rules(),
+            alert_ladder=load_alert_ladder(),
+            ladder_reset_percent=float(os.getenv("LADDER_RESET_PERCENT", "0.7")),
+            ladder_cooldown_seconds=float(os.getenv("LADDER_COOLDOWN_SECONDS", "60")),
+            symbol_direction_cooldown_seconds=float(os.getenv("SYMBOL_DIRECTION_COOLDOWN_SECONDS", "180")),
+            alert_windows=load_alert_windows(),
+            opening_summary_enabled=env_bool("OPENING_SUMMARY_ENABLED", True),
+            opening_summary_threshold_percent=float(os.getenv("OPENING_SUMMARY_THRESHOLD_PERCENT", "3")),
+            opening_summary_window_minutes=float(os.getenv("OPENING_SUMMARY_WINDOW_MINUTES", "15")),
         ),
     )
+
+
+def load_alert_ladder() -> tuple[float, ...]:
+    raw = os.getenv("ALERT_LADDER", "1,1.5,2,2.5").strip()
+    levels = sorted({float(item.strip()) for item in raw.split(",") if item.strip()})
+    if not levels:
+        raise RuntimeError("ALERT_LADDER must contain at least one threshold.")
+    return tuple(levels)
+
+
+def load_alert_windows() -> tuple[AlertWindow, ...]:
+    raw = os.getenv(
+        "ALERT_WINDOWS",
+        "3:0.8|1.2|1.8:0.5,5:1|1.5|2|2.5:0.7,10:1.5|2.5|3.5:1.0",
+    ).strip()
+    windows: list[AlertWindow] = []
+    for item in raw.split(","):
+        if not item.strip():
+            continue
+        parts = [part.strip() for part in item.split(":")]
+        if len(parts) != 3:
+            raise RuntimeError(
+                "ALERT_WINDOWS must use format: minutes:level|level|level:reset_percent"
+            )
+        minutes, ladder_raw, reset_percent = parts
+        ladder = sorted({float(level.strip()) for level in ladder_raw.split("|") if level.strip()})
+        if not ladder:
+            raise RuntimeError("Each ALERT_WINDOWS item must contain at least one threshold.")
+        windows.append(
+            AlertWindow(
+                minutes=float(minutes),
+                ladder=tuple(ladder),
+                reset_percent=float(reset_percent),
+            )
+        )
+    if not windows:
+        raise RuntimeError("ALERT_WINDOWS must contain at least one window.")
+    return tuple(sorted(windows, key=lambda window: window.minutes))
 
 
 def load_alert_rules() -> tuple[AlertRule, ...]:
